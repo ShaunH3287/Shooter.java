@@ -1,0 +1,237 @@
+package me.mateo226.main;
+
+import java.awt.Color;
+import java.awt.Dimension;
+import java.awt.Graphics;
+import java.awt.Image;
+import java.awt.event.KeyEvent;
+import java.awt.event.KeyListener;
+import java.awt.image.BufferedImage;
+import java.io.File;
+import java.io.IOException;
+
+import javax.imageio.ImageIO;
+import javax.swing.JPanel;
+
+import me.mateo226.entities.Player;
+import me.mateo226.guns.Bullet;
+
+public class GamePanel extends JPanel implements Runnable {
+    private static final long serialVersionUID = 1L;
+    private static final int PWIDTH = 720;
+    private static final int PHEIGHT = 480;
+    private static Thread game;
+    private static volatile boolean running = false;
+    public static volatile boolean gameOver = false;
+    public static volatile boolean paused = false;
+    public static Graphics g;
+    public static Image gImage;
+    public static long lastLoopTime = System.currentTimeMillis();
+    public static long delta;
+    public static volatile boolean upPressed = false;
+    public static volatile boolean downPressed = false;
+    public static volatile boolean leftPressed = false;
+    public static volatile boolean rightPressed = false;
+    public BufferedImage backgroundImage;
+    public Player player;
+    Bullet bullet;
+
+    public GamePanel() {
+
+        setPreferredSize(new Dimension(PWIDTH, PHEIGHT));
+        setBackground(Color.white);
+
+        setFocusable(true);
+        requestFocus();
+        waitForTermination();
+
+    }
+
+    public void addNotify() {
+        super.addNotify();
+        startGame();
+    }
+
+    public void waitForTermination() {
+        addKeyListener(new KeyListener() {
+            @Override
+            public void keyPressed(KeyEvent e) {
+                int keyCode = e.getKeyCode();
+                if (keyCode == KeyEvent.VK_ESCAPE) {
+                    GamePanel.stopGame();
+                }
+                if (keyCode == KeyEvent.VK_W || keyCode == KeyEvent.VK_UP) {
+                    upPressed = true;
+                }
+                if (keyCode == KeyEvent.VK_S || keyCode == KeyEvent.VK_DOWN) {
+                    downPressed = true;
+                }
+                if (keyCode == KeyEvent.VK_A || keyCode == KeyEvent.VK_LEFT) {
+                    leftPressed = true;
+                }
+                if (keyCode == KeyEvent.VK_D || keyCode == KeyEvent.VK_RIGHT) {
+                    rightPressed = true;
+                }
+
+                if (keyCode == KeyEvent.VK_ESCAPE) {
+                    System.exit(0);
+                }
+
+            }
+
+            @Override
+            public void keyReleased(KeyEvent e) {
+                int keyCode = e.getKeyCode();
+                if (keyCode == KeyEvent.VK_W || keyCode == KeyEvent.VK_UP) {
+                    upPressed = false;
+                }
+                if (keyCode == KeyEvent.VK_S || keyCode == KeyEvent.VK_DOWN) {
+                    downPressed = false;
+                }
+                if (keyCode == KeyEvent.VK_A || keyCode == KeyEvent.VK_LEFT) {
+                    leftPressed = false;
+                }
+                if (keyCode == KeyEvent.VK_D || keyCode == KeyEvent.VK_RIGHT) {
+                    rightPressed = false;
+                }
+
+            }
+
+            @Override
+            public void keyTyped(KeyEvent e) {
+
+            }
+
+        });
+
+    }
+
+    @Override
+    public void run() {
+        running = true;
+        while (running) {
+            delta = System.currentTimeMillis() - lastLoopTime;
+            lastLoopTime = System.currentTimeMillis();
+
+            gameUpdate();
+            gameRender();
+            checkMovement();
+            paintpauseScreen();
+
+            try {
+                Thread.sleep(5);
+            } catch (Exception e) {
+                System.out.println("The thread couldn't sleep! Error info: "
+                        + e);
+            }
+
+        }
+        System.exit(0);
+
+    }
+
+    private void checkMovement() {
+        if (!paused && !gameOver) {
+
+        }
+    }
+
+    private void paintpauseScreen() {
+        Graphics g;
+        try {
+            g = this.getGraphics();
+            if ((g != null) && (gImage != null))
+                g.drawImage(gImage, 0, 0, null);
+            g.dispose();
+        } catch (Exception e) {
+            System.out.println("Graphics context error: " + e);
+        }
+    }
+
+    private void gameRender() {
+        if (gImage == null) {
+            gImage = createImage(PWIDTH, PHEIGHT);
+            if (gImage == null) {
+                System.out
+                        .println("image null after creating it??? Please check the code for any errors!");
+            } else {
+                g = gImage.getGraphics();
+            }
+        }
+        if (!paused) {
+            g.setColor(Color.white);
+            g.fillRect(0, 0, PWIDTH, PHEIGHT);
+            g.setColor(Color.blue);
+        }
+        try {
+            backgroundImage = ImageIO.read(new File("res\\background.png"));
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        g.drawImage(backgroundImage, 0, 0, Color.white, null);
+
+        if (player != null) {
+            player.drawPlayer(g);
+        }
+        if (bullet != null) {
+            bullet.drawBullet(g);
+        }
+
+    }
+
+    private void gameUpdate() {
+        if (!paused && !gameOver) {
+            movePlayer();
+            if (bullet != null){
+                bullet.shootBullet(g, "right");
+            }
+        }
+    }
+
+    public void startGame() {
+        if (game == null) {
+            game = new Thread(this);
+            if (game == null) {
+                System.out.println("Couldn't create the thread!");
+            } else {
+                System.out.println("Thread created!");
+                game.start();
+            }
+        }
+        if (g == null) {
+            g = this.getGraphics();
+            if (g == null) {
+                System.out.println("The graphics were not created!");
+            } else {
+                System.out.println("The graphics are successfully created!");
+            }
+        }
+
+        player = new Player(32, 32, "res\\player.png");
+        bullet = new Bullet("res\\grassTile.png", "right", player.x + 32,
+                player.y);
+        running = true;
+
+    }
+
+    public void movePlayer() {
+        if (upPressed) {
+            player.y -= player.moveSpeed * delta;
+        }
+        if (downPressed) {
+            player.y += player.moveSpeed * delta;
+        }
+        if (leftPressed) {
+            player.x -= player.moveSpeed * delta;
+        }
+        if (rightPressed) {
+            player.x += player.moveSpeed * delta;
+        }
+
+    }
+
+    public static void stopGame() {
+        running = false;
+    }
+
+}
